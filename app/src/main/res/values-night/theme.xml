@@ -1,0 +1,4 @@
+<resources>
+    <style name="BaseTheme" parent="android:style/Theme.Material.NoActionBar"/>
+    <bool name="light_bars">false</bool>
+</resources>

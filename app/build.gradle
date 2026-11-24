@@ -1,0 +1,51 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'io.fieldnote.recorder'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'io.fieldnote.recorder'
+        minSdk 29
+        targetSdk 36
+        versionCode 1
+        versionName '1.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    testBuildType 'verification'
+    buildTypes {
+        verification {
+            initWith debug
+            applicationIdSuffix '.verification'
+            enableAndroidTestCoverage true
+            matchingFallbacks = ['debug']
+        }
+    }
+}
+dependencies {
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    androidTestImplementation 'androidx.test:rules:1.7.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
+}
+
+tasks.register('checkDeviceCoverage') {
+    dependsOn 'createVerificationAndroidTestCoverageReport'
+    doLast {
+        def report = layout.buildDirectory.file('reports/coverage/androidTest/verification/connected/report.xml').get().asFile
+        def parser = new XmlSlurper(false, false, true)
+        parser.setFeature('http://apache.org/xml/features/nonvalidating/load-external-dtd', false)
+        def classes = parser.parse(report).'package'.'class'
+        def methods = classes.method.findAll { it.counter.any { c -> c.@type == 'LINE' } }
+        if (methods.size() == 0) throw new GradleException('Missing per-method coverage counters')
+        def failures = methods.findAll { method ->
+            def lines = method.counter.find { it.@type == 'LINE' }
+            lines.@covered.toInteger() < 4 * lines.@missed.toInteger()
+        }
+        if (failures.size() > 0) throw new GradleException("Below 80% executable-line coverage: " +
+            failures.collect { it.parent().@name.toString() + '.' + it.@name }.join(', '))
+        logger.lifecycle("Coverage >=80% in ${methods.size()} of ${methods.size()} measured production methods.")
+    }
+}

@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">Fieldnote</string>
+    <string name="title">Audio recorder</string>
+    <string name="ready">Ready to record</string>
+    <string name="starting">Opening microphone…</string>
+    <string name="recording">Recording</string>
+    <string name="saving">Saving recording…</string>
+    <string name="record">Record</string>
+    <string name="stop">Stop</string>
+    <string name="profile">Recording profile</string>
+    <string name="footer">Leaving this screen stops and saves your recording.</string>
+    <string name="latest">Last recording</string>
+    <string name="play">Play recording</string>
+    <string name="storage">Saved to Music/Fieldnote</string>
+    <string name="permission_denied">Microphone access is needed to record. You can enable it in app settings.</string>
+    <string name="settings">App settings</string>
+    <string name="auto">Automatic</string>
+    <string name="hardware">Hardware accelerated</string>
+    <string name="platform">Platform encoder</string>
+    <string name="profile_detail">%1$s · %2$d kbps · %3$s kHz · Mono</string>
+    <string name="no_profile">No supported recording profile</string>
+    <string name="checking">Checking encoders…</string>
+    <string name="no_player">Couldn’t open this file. Find your recordings in Music/Fieldnote.</string>
+</resources>

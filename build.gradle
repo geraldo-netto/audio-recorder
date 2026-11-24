@@ -1,0 +1,25 @@
+plugins {
+    id 'com.android.application' version '8.13.2' apply false
+}
+
+configurations { sonarMetrics }
+dependencies {
+    sonarMetrics 'org.sonarsource.java:sonar-java-plugin:8.46.0.59609@jar'
+    sonarMetrics 'org.sonarsource.api.plugin:sonar-plugin-api:9.17.0.587@jar'
+    sonarMetrics 'org.slf4j:slf4j-api:2.0.17@jar'
+}
+
+tasks.register('checkComplexity', Exec) {
+    def sources = files(fileTree('app/src') { include '**/*.java' },
+                        fileTree('tools') { include '**/*.java' })
+    def report = layout.buildDirectory.file('reports/complexity.tsv')
+    inputs.files(sources, configurations.sonarMetrics)
+    outputs.file(report)
+    doFirst {
+        report.get().asFile.parentFile.mkdirs()
+        commandLine(['java', '-cp', configurations.sonarMetrics.asPath, 'tools/metrics/Complexity.java'] +
+                sources.files.collect { relativePath(it) }.sort())
+        standardOutput = report.get().asFile.newOutputStream()
+    }
+    doLast { standardOutput.close() }
+}
