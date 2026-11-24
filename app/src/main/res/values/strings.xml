@@ -8,7 +8,7 @@
     <string name="record">Record</string>
     <string name="stop">Stop</string>
     <string name="profile">Recording profile</string>
-    <string name="footer">Leaving this screen stops and saves your recording.</string>
+    <string name="footer">Recording continues when you switch apps or lock the screen.</string>
     <string name="latest">Last recording</string>
     <string name="play">Play recording</string>
     <string name="storage">Saved to Music/Fieldnote</string>
@@ -21,4 +21,6 @@
     <string name="no_profile">No supported recording profile</string>
     <string name="checking">Checking encoders…</string>
     <string name="no_player">Couldn’t open this file. Find your recordings in Music/Fieldnote.</string>
+    <string name="notification_channel">Active recordings</string>
+    <string name="notification_detail">Microphone in use. Stop to save your recording.</string>
 </resources>

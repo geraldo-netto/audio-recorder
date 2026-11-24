@@ -33,7 +33,7 @@ final class Destination implements AutoCloseable {
         values.put(MediaStore.Audio.Media.MIME_TYPE, aac ? "audio/mp4" : "audio/ogg");
         values.put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/Fieldnote/");
         values.put(MediaStore.Audio.Media.IS_PENDING, 1);
-        Uri uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values);
+        Uri uri = resolver.insert(MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values);
         if (uri == null) throw new IOException("Audio storage unavailable");
         return new Destination(resolver, uri, name);
     }

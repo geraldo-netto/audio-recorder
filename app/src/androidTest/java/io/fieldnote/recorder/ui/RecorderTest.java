@@ -31,6 +31,9 @@ import org.junit.Test;
 
 public class RecorderTest {
     @Rule public GrantPermissionRule microphone = GrantPermissionRule.grant(Manifest.permission.RECORD_AUDIO);
+    @Rule public org.junit.rules.TestRule notification = android.os.Build.VERSION.SDK_INT >= 33
+            ? GrantPermissionRule.grant(Manifest.permission.POST_NOTIFICATIONS)
+            : (statement, description) -> statement;
     private final RecorderApp app = ApplicationProvider.getApplicationContext();
 
     private void until(ActivityScenario<RecorderActivity> scenario, BooleanSupplier predicate) {
@@ -94,7 +97,7 @@ public class RecorderTest {
         }
     }
 
-    // FN-5: a second recorder task becomes visible before the first activity stops.
+    // FN-5: a second recorder task attaches to an existing take.
     @Test public void anotherRecorderTaskKeepsTheActiveTake() throws Exception {
         try (var first = ActivityScenario.launch(RecorderActivity.class)) {
             until(first, () -> app.session.loaded);
@@ -142,7 +145,7 @@ public class RecorderTest {
     }
 
     private void verifySaved(ActivityScenario<RecorderActivity> scenario, int minimumMs) throws Exception {
-        until(scenario, () -> app.session.phase == Session.Phase.IDLE);
+        until(scenario, () -> app.session.phase == Session.Phase.IDLE && app.session.clip != null);
         assertEquals("", app.session.message);
         Recording.Clip clip = app.session.clip;
         assertNotNull(clip);
@@ -201,9 +204,16 @@ public class RecorderTest {
 
     private void awaitPlayback(MediaPlayer player) throws Exception {
         var complete = new CountDownLatch(1);
+        var error = new java.util.concurrent.atomic.AtomicReference<String>();
+        player.setOnErrorListener((p, what, extra) -> {
+            error.set("Playback error " + what + "/" + extra);
+            complete.countDown();
+            return true;
+        });
         player.setOnCompletionListener(p -> complete.countDown());
         player.start();
         assertTrue("Playback completion", complete.await(12, TimeUnit.SECONDS));
+        assertNull(error.get(), error.get());
     }
 
     // FN-7: an unprepared native player delivers an asynchronous error on start.
@@ -211,7 +221,8 @@ public class RecorderTest {
         var player = new MediaPlayer();
         try {
             player.reset();
-            assertThrows(AssertionError.class, () -> awaitPlayback(player));
+            AssertionError rejected = assertThrows(AssertionError.class, () -> awaitPlayback(player));
+            assertTrue(rejected.getMessage().contains("Playback error"));
         } finally {
             player.release();
         }

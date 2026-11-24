@@ -34,8 +34,13 @@ final class Pump {
 
     void run(Output output, BooleanSupplier stop) throws IOException {
         long progress = SystemClock.elapsedRealtime();
+        boolean cutoff = false;
         while (true) {
-            boolean queued = feed(stop.getAsBoolean());
+            if (!cutoff && stop.getAsBoolean()) {
+                input.mic.stop();
+                cutoff = true;
+            }
+            boolean queued = feed(cutoff);
             int event = output.drain(input.codec, 5000);
             if (event == Output.END) break;
             if (queued || event != MediaCodec.INFO_TRY_AGAIN_LATER) progress = SystemClock.elapsedRealtime();

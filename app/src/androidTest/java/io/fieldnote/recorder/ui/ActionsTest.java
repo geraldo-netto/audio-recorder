@@ -54,7 +54,7 @@ public class ActionsTest {
         try (var scene = ActivityScenario.launch(RecorderActivity.class)) {
             scene.onActivity(a -> {
                 app.session.clip = new Recording.Clip("content://media/external/audio/media/123", "Test clip");
-                app.session.changed.run();
+                app.session.changed();
                 a.findViewById(R.id.play).performClick();
                 assertEquals(Uri.parse(app.session.clip.location()), sent.get().getData());
                 assertEquals(Intent.FLAG_GRANT_READ_URI_PERMISSION, sent.get().getFlags());
@@ -78,17 +78,17 @@ public class ActionsTest {
                 try {
                     app.session.profiles = java.util.Collections.emptyList();
                     app.session.loaded = false;
-                    app.session.changed.run();
+                    app.session.changed();
                     TextView status = a.findViewById(R.id.status);
                     assertEquals(a.getText(R.string.checking), status.getText());
                     app.session.loaded = true;
-                    app.session.changed.run();
+                    app.session.changed();
                     assertEquals(a.getText(R.string.no_profile), status.getText());
                     assertFalse(a.findViewById(R.id.toggle).isEnabled());
                 } finally {
                     app.session.loaded = loaded;
                     app.session.profiles = original;
-                    app.session.changed.run();
+                    app.session.changed();
                 }
             });
         }

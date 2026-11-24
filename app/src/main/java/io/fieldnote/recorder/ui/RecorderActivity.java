@@ -18,6 +18,8 @@ import io.fieldnote.recorder.R;
 
 public final class RecorderActivity extends Activity {
     private static final int MIC = 11;
+    private final Runnable refresh = this::render;
+    private RecorderApp app;
     private Session session;
     private ProfilePicker picker;
     private boolean visible;
@@ -27,10 +29,20 @@ public final class RecorderActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.recorder);
-        var app = (RecorderApp) getApplication();
+        app = (RecorderApp) getApplication();
         session = app.session;
         picker = new ProfilePicker(this, app.prefs, session);
+        if (state != null) {
+            denied = state.getBoolean("denied");
+            localNotice = state.getString("notice", "");
+        }
         wireControls();
+    }
+
+    @Override protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putBoolean("denied", denied);
+        state.putString("notice", localNotice);
     }
 
     private void wireControls() {
@@ -50,14 +62,12 @@ public final class RecorderActivity extends Activity {
         super.onStart();
         visible = true;
         if (allowed() && denied) { denied = false; localNotice = ""; }
-        session.changed = this::render;
-        render();
+        app.show(refresh);
     }
 
     @Override protected void onStop() {
         visible = false;
-        session.changed = () -> {};
-        if (!isChangingConfigurations()) session.stop();
+        app.hide(refresh);
         super.onStop();
     }
 
@@ -72,15 +82,24 @@ public final class RecorderActivity extends Activity {
         }
         denied = false;
         localNotice = "";
-        if (allowed()) session.start(picker.candidates());
-        else requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, MIC);
+        String notification = android.os.Build.VERSION.SDK_INT >= 33 ? Manifest.permission.POST_NOTIFICATIONS : null;
+        boolean notificationsGranted = notification == null || checkSelfPermission(notification) == PackageManager.PERMISSION_GRANTED;
+        String[] needed = RecordingPermissions.request(notification, allowed(), notificationsGranted,
+                app.prefs.getBoolean("asked-notifications", false));
+        if (needed.length == 0) {
+            app.record(picker.candidates());
+            return;
+        }
+        if (java.util.Arrays.asList(needed).contains(notification))
+            app.prefs.edit().putBoolean("asked-notifications", true).apply();
+        requestPermissions(needed, MIC);
     }
 
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) {
         super.onRequestPermissionsResult(request, permissions, grants);
-        if (request != MIC || !visible) return;
-        if (grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED && allowed()) {
-            session.start(picker.candidates());
+        if (request != MIC || !visible || grants.length == 0) return;
+        if (RecordingPermissions.microphoneGranted(allowed(), permissions, grants)) {
+            app.record(picker.candidates());
         } else {
             denied = true;
             localNotice = getString(R.string.permission_denied);
@@ -124,11 +143,16 @@ public final class RecorderActivity extends Activity {
 
     private int status() {
         return switch (session.phase) {
-            case IDLE -> R.string.ready;
+            case IDLE -> idleStatus();
             case STARTING -> R.string.starting;
             case RECORDING -> R.string.recording;
             case SAVING -> R.string.saving;
         };
+    }
+
+    private int idleStatus() {
+        if (!session.loaded) return R.string.checking;
+        return session.profiles.isEmpty() ? R.string.no_profile : R.string.ready;
     }
 
     private void renderTime() {

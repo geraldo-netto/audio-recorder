@@ -28,9 +28,9 @@ public class SessionTest {
     };
 
     @Test public void discoveryFailureIsVisible() throws Exception {
-        var session = new Session(broken, c -> fail());
+        var session = new Session(broken, () -> fail());
         run(() -> {
-            session.changed = finished::countDown;
+            session.subscribe(finished::countDown);
             session.discover();
         });
         assertTrue(finished.await(5, TimeUnit.SECONDS));
@@ -39,21 +39,37 @@ public class SessionTest {
     }
 
     @Test public void failureAndEarlyStopSettleWithoutPublishing() throws Exception {
-        var session = new Session(broken, c -> fail());
+        var session = new Session(broken, () -> fail());
         run(() -> {
-            session.changed = () -> { if (session.phase == Session.Phase.IDLE) finished.countDown(); };
-            session.start(Collections.emptyList());
+            session.subscribe(() -> { if (session.phase == Session.Phase.IDLE) finished.countDown(); });
+            session.reserve(Collections.emptyList());
             session.stop();
             assertEquals(Session.Phase.IDLE, session.phase);
-            session.start(Collections.singletonList(profile));
+            session.reserve(Collections.singletonList(profile));
+            session.begin(() -> {});
             session.stop();
-            session.start(Collections.singletonList(profile));
+            session.reserve(Collections.singletonList(profile));
             assertEquals(Session.Phase.SAVING, session.phase);
         });
         assertTrue(finished.await(5, TimeUnit.SECONDS));
         assertTrue(session.message.contains("storage full"));
         assertNull(session.active);
         assertNull(session.clip);
+    }
+
+    @Test public void launchAndPromotionRejectionReleaseAdmission() {
+        var session = new Session(broken, () -> fail());
+        var candidates = Collections.singletonList(profile);
+        run(() -> {
+            session.request(candidates, take -> { throw new IllegalStateException(); });
+            assertEquals(Session.Phase.IDLE, session.phase);
+            assertTrue(session.message.contains("Open Fieldnote"));
+            session.request(candidates, take -> session.begin(() -> { throw new SecurityException(); }));
+            assertEquals(Session.Phase.IDLE, session.phase);
+            assertNull(session.take);
+            assertTrue(session.message.contains("could not start"));
+            assertNull(new CaptureService().onBind(new android.content.Intent()));
+        });
     }
 
     private void run(Runnable work) {

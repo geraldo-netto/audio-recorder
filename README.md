@@ -1,6 +1,6 @@
 # Fieldnote
 
-Fieldnote records mono microphone audio on Android 10 and newer. Tap **● Record** to begin and **■ Stop** to save. The screen stays awake during a take. Rotating preserves the session. Switching away or locking the screen ends the take and saves captured audio. The most recent file has a playback button. All completed recordings are visible in **Music/Fieldnote**.
+Fieldnote records mono microphone audio on Android 10 and newer. Tap **● Record** to begin and **■ Stop** to save. Fieldnote keeps its own screen awake during a take. You can switch to a browser, close the recorder window, rotate the device or lock the screen during a take. Tap **Stop** in Fieldnote or its recording notification to finish. A notification from an earlier take cannot stop a newer one. The most recent file has a playback button. All completed recordings are visible in **Music/Fieldnote**.
 
 ## Recording profiles
 
@@ -10,7 +10,9 @@ The app opens the exact named encoder. In Automatic mode, if microphone or encod
 
 ## Permissions and storage
 
-The only manifest permission is microphone access, requested on the first recording attempt. Android MediaStore gives the app write access to its own files. Recordings become public after the muxer finalizes and the file descriptor closes. A failed take discards its pending row. If Android kills the process, MediaStore controls expiration of the unpublished row. Playback grants the chosen Android player read access to the selected recording. [Android shared media storage](https://developer.android.com/training/data-storage/shared/media)
+The first tap on Record requests microphone access. On Android 13 and newer it also offers notification access so the recording notification can provide Stop while you use another app. If you decline notifications, you can still record and reopen Fieldnote to stop. The app declares the standard foreground-service permission and the microphone foreground-service type permission. Each recording starts from a visible user action. [Android microphone foreground services](https://developer.android.com/develop/background-work/services/fgs/service-types#microphone) · [Android notification permission](https://developer.android.com/develop/ui/compose/notifications/notification-permission)
+
+Fieldnote uses Android MediaStore to write its own files without storage permission. Recordings become public after the muxer finalizes and the file descriptor closes. A failed take discards its pending row. After a force-stop or process kill, an unfinished recording can be lost. The service does not restart capture automatically. The last-recording control reads the latest published audio owned by Fieldnote and follows renames and deletions. Playback grants the Android player read access to the selected recording. [Android shared media storage](https://developer.android.com/training/data-storage/shared/media)
 
 ## Build and verify
 
@@ -21,7 +23,7 @@ Use JDK 21, the Android SDK platform 36 and build tools 35.0.0. Android Studio c
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Run the device tests on an unlocked Android device or emulator with microphone input. The verification build has its own application ID. The tests create short recordings, exercise Android playback at zero volume and remove their clips.
+Run the device tests on an unlocked Android device or emulator with microphone input. The verification build has its own application ID. Android Test Orchestrator isolates each test and test storage retains coverage counters across application-data resets. The tests create short recordings, exercise Android playback at zero volume and remove their clips.
 
 ```sh
 ANDROID_SERIAL=emulator-5554 ./gradlew :app:checkDeviceCoverage
@@ -33,4 +35,4 @@ Replace `emulator-5554` with the serial from `adb devices`. SonarJava 8.46 measu
 
 The Android-independent `api` package defines profiles, clip identity, recording admission, stop and publication. The pure Java `domain` package ranks candidates. The `audio` package implements these contracts with Android audio and storage APIs. The `ui` package owns the visible session, permission flow and user preferences.
 
-One capture worker owns the microphone, codec, muxer and pending file for a take. The UI posts a stop request. Only the worker queues end-of-stream, drains output and releases native handles. Each borrowed output slot is returned after its synchronous write. At most one input slot and one output slot are held. No PCM history is retained by the app. A ten-second absence of stream progress ends the take with an error. The next take is admitted after the previous worker settles its handles.
+One capture worker owns the microphone, codec, muxer and pending file for a take. The foreground service promotes itself before the worker opens the microphone and stays active through finalization. The UI and notification request a stop on the same session. At cutoff the worker stops the microphone, queues end-of-stream, drains output and releases native handles. Each borrowed output slot is returned after its synchronous write. At most one input slot and one output slot are held. No PCM history is retained by the app. A ten-second absence of stream progress ends the take with an error. The next take is admitted after the previous worker settles its handles.
