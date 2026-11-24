@@ -10,6 +10,7 @@
 | FN-6 | open | low | small | RecorderActivity.status reports ready during discovery and after an empty catalog disables Record. Make status, controls and profile details agree in each state. |
 | FN-7 | open | medium | small | RecorderTest.checkPlayback accepts Android's completion callback after asynchronous playback errors. Verify a deliberate player error fails the playback oracle and check valid recordings. |
 | FN-8 | in_progress | high | small | Newly requested background capture needs a user-started microphone foreground service, an identity-bound Stop notification, and verification of saved audio during the hidden interval. |
+| FN-9 | open | low | small | RecorderActivity loses the microphone-denial notice and App settings action during recreation while access is still denied. Preserve the recovery controls and exercise actual denial followed by recreation. |
 
 ## Other items
 
