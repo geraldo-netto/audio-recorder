@@ -69,6 +69,31 @@ public class ActionsTest {
         }
     }
 
+    // FN-6: a disabled transport must not announce readiness.
+    @Test public void idleStatusMatchesCatalogAvailability() {
+        try (var scene = ActivityScenario.launch(RecorderActivity.class)) {
+            scene.onActivity(a -> {
+                var original = app.session.profiles;
+                boolean loaded = app.session.loaded;
+                try {
+                    app.session.profiles = java.util.Collections.emptyList();
+                    app.session.loaded = false;
+                    app.session.changed.run();
+                    TextView status = a.findViewById(R.id.status);
+                    assertEquals(a.getText(R.string.checking), status.getText());
+                    app.session.loaded = true;
+                    app.session.changed.run();
+                    assertEquals(a.getText(R.string.no_profile), status.getText());
+                    assertFalse(a.findViewById(R.id.toggle).isEnabled());
+                } finally {
+                    app.session.loaded = loaded;
+                    app.session.profiles = original;
+                    app.session.changed.run();
+                }
+            });
+        }
+    }
+
     private Instrumentation.ActivityMonitor intercept(AtomicReference<Intent> sent, java.util.function.BooleanSupplier reject) {
         var monitor = new Instrumentation.ActivityMonitor() {
             @Override public Instrumentation.ActivityResult onStartActivity(Intent intent) {

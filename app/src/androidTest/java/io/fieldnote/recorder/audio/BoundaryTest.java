@@ -63,6 +63,19 @@ public class BoundaryTest {
         assertEquals(before, pending());
     }
 
+    // FN-3: stop relinquishes the microphone before the sink is closed or published.
+    @Test public void stopEndsNativeCaptureBeforeFileCleanup() throws Exception {
+        try (var screen = androidx.test.core.app.ActivityScenario.launch(io.fieldnote.recorder.ui.RecorderActivity.class)) {
+            Profile p = recording.profiles().get(0);
+            try (var input = Input.open(p); var row = Destination.create(app.getContentResolver(), p.format());
+                 var fd = row.open(); var output = new Output(fd.getFileDescriptor(), p.format())) {
+                long end = android.os.SystemClock.elapsedRealtime() + 600;
+                new Pump(input, p.rate()).run(output, () -> android.os.SystemClock.elapsedRealtime() >= end);
+                assertEquals(android.media.AudioRecord.RECORDSTATE_STOPPED, input.mic.getRecordingState());
+            }
+        }
+    }
+
     private int pending() {
         String filter = "is_pending=1 AND relative_path=?";
         try (Cursor rows = app.getContentResolver().query(MediaStore.setIncludePending(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI),
